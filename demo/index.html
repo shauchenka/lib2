@@ -1,0 +1,188 @@
+<html>
+<head>
+    <style>
+        * { padding: 0; margin: 0; }
+        body { background-color: rgb(234, 233, 227); }
+        canvas { position: absolute; }
+        #display {
+            font: 10px sans-serif;
+            line-height: 2em;
+            color: #000;
+            position: absolute;
+            top: 10px;
+            left: 10px;
+        }
+        #display input {
+            width: 95px;
+            font: 10px sans-serif;
+            border: none;
+            border-bottom: 1px solid rgba(204, 204, 204, 0.5);
+            background-color: transparent;
+        }
+    </style>
+    <script>
+        /**
+         * Using random, randUniform, randomSeed
+         * @see http://jsdo.it/akm2/2e21
+         */
+
+// ランダムで初期値に設定するシードの候補
+        var PRESETS = [
+            1341251761447, 1225182857645, 89774598974,   916600684425, 1292814877294,
+            537708684959,  531254768441,  1068864612213, 45472665677,  649417587788,
+            560528092844,  1137440657708, 872526399572,  340092446083, 193199896677
+        ];
+
+        var ITERATIONS = 85000; // 繰り返しの回数 (パーティクル数)
+        var VALUE_RANGE = 5; // 値の変化範囲 (+-)
+        var SCALE = 80; // アトラクターのスケール
+
+        var canvas;
+        var canvasWidth, canvasHeight;
+        var context;
+        var centerX, centerY;
+        var values = [0, 0, 0, 0]; // a, b, c, d
+        var targetValues = values.slice();
+        var attractor;
+        var seed$, a$, b$, c$, d$;
+
+        function init() {
+            canvas = document.getElementById('canvas');
+
+            window.addEventListener('resize', resize, false);
+            resize();
+
+            seed$ = document.getElementById('seed');
+            seed$.addEventListener('change', change, false);
+
+            a$ = document.getElementById('a');
+            b$ = document.getElementById('b');
+            c$ = document.getElementById('c');
+            d$ = document.getElementById('d');
+
+            var seed = PRESETS[Akm2.randInt(PRESETS.length - 1)];
+            randomizeTargetValues(seed);
+            seed$.value = seed;
+
+            attractor = new Attractor(values);
+
+            document.addEventListener('click', click, false);
+
+            setInterval(loop, 1000 / 60);
+        }
+
+        function resize(e) {
+            canvasWidth = canvas.width = window.innerWidth;
+            canvasHeight = canvas.height = window.innerHeight;
+            centerX = Math.floor(canvasWidth / 2);
+            centerY = Math.floor(canvasHeight / 2);
+            context = canvas.getContext('2d');
+            context.fillStyle = 'rgba(234, 233, 227, 0.5)';
+        }
+
+        function change() {
+            randomizeTargetValues(seed$.value);
+        }
+
+        function click(e) {
+            if (e.target === seed$) return;
+
+            var seed = Math.round(new Date().getTime() * Math.random());
+            randomizeTargetValues(seed);
+            seed$.value = seed;
+        }
+
+        function loop() {
+            context.fillRect(0, 0, canvasWidth, canvasHeight);
+
+            var imageData = context.getImageData(0, 0, canvasWidth, canvasHeight);
+            var data = imageData.data;
+
+            var i, x, y, j, c;
+
+            for (i = 0; i < ITERATIONS; i++) {
+                attractor.update();
+                x = (attractor.x * SCALE + centerX) | 0;
+                y = (attractor.y * SCALE + centerY) | 0;
+
+                j = (x + y * canvasWidth) * 4;
+
+                if ((c = data[j] - (255 * 0.2)) < 0) c = 0;
+                data[j]     = c;
+                data[j + 1] = c;
+                data[j + 2] = c;
+            }
+
+            context.putImageData(imageData, 0, 0);
+
+            var len, d;
+            for (i = 0, len = values.length; i < len; i++) {
+                d = targetValues[i] - values[i];
+                if ((d < 0 ? -d : d) < 0.001) {
+                    values[i] = targetValues[i];
+                } else {
+                    values[i] += d * 0.3;
+                }
+            }
+
+            attractor.set(values);
+
+            a$.innerHTML = values[0];
+            b$.innerHTML = values[1];
+            c$.innerHTML = values[2];
+            d$.innerHTML = values[3];
+        }
+
+        function randomizeTargetValues(seed) {
+            // 乱数のシードを設定
+            // @see http://jsdo.it/akm2/2e21
+            Akm2.randomSeed(seed);
+
+            for (var i = 0, len = values.length; i < len; i++) {
+                targetValues[i] = parseFloat(Akm2.randUniform(VALUE_RANGE, -VALUE_RANGE).toFixed(2));
+            }
+        }
+
+        /**
+         * Attractor
+         */
+        function Attractor(values) {
+            this.x = 0;
+            this.y = 0;
+            this.set(values);
+        }
+
+        Attractor.prototype = {
+            a: 0, b: 0, c: 0, d: 0,
+
+            set: function(values) {
+                this.a = values[0];
+                this.b = values[1];
+                this.c = values[2];
+                this.d = values[3];
+            },
+
+            update: function() {
+                // http://paulbourke.net/fractals/peterdejong/
+                var nx = this.x, ny = this.y;
+                this.x = Math.sin(this.a * ny) - Math.cos(this.b * nx);
+                this.y = Math.sin(this.c * nx) - Math.cos(this.d * ny);
+            }
+        };
+
+        window.addEventListener('load', init, false);
+
+    </script>
+</head>
+<body>
+<canvas id='canvas'></canvas>
+<div id="display">
+    Seed: <input type="text" id="seed" value="" /><br />
+    a: <span id="a"></span><br />
+    b: <span id="b"></span><br />
+    c: <span id="c"></span><br />
+    d: <span id="d"></span><br />
+</div>
+</body>
+<script src="../lib2.js"></script>
+</html>
